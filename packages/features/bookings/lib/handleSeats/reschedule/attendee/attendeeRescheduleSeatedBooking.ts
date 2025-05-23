@@ -89,9 +89,20 @@ const attendeeRescheduleSeatedBooking = async (
 
   const copyEvent = cloneDeep({ ...evt, iCalUID: newTimeSlotBooking.iCalUID });
 
+  // Ensure attendee time zone is set correctly for all attendees in the event object
+  if (seatAttendee && seatAttendee.timeZone) {
+    copyEvent.attendees = copyEvent.attendees.map((a) =>
+      a.email === seatAttendee.email ? { ...a, timeZone: seatAttendee.timeZone } : a
+    );
+  }
+
   await eventManager.updateCalendarAttendees(copyEvent, newTimeSlotBooking);
 
-  await sendRescheduledSeatEmailAndSMS(copyEvent, seatAttendee as Person, eventType.metadata);
+  // Respect disable standard emails setting for attendees
+  if (!eventType?.metadata?.disableStandardEmails?.all?.attendee) {
+    await sendRescheduledSeatEmailAndSMS(copyEvent, seatAttendee as Person, eventType.metadata);
+  }
+
   const filteredAttendees = originalRescheduledBooking?.attendees.filter((attendee) => {
     return attendee.email !== bookerEmail;
   });
